@@ -6,6 +6,20 @@ import {
 } from "./shaders.js";
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Check WebGL support
+  const canvas = document.createElement("canvas");
+  const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+  if (!gl) {
+    document.body.innerHTML = `
+      <div style="color: white; text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+        <h2>WebGL Not Supported</h2>
+        <p>Your device or browser doesn't support WebGL, which is required for this effect.</p>
+        <p>Please try updating your browser or using a different device.</p>
+      </div>
+    `;
+    return;
+  }
+
   const scene = new THREE.Scene();
   const simScene = new THREE.Scene();
 
@@ -16,33 +30,98 @@ document.addEventListener("DOMContentLoaded", () => {
     alpha: true,
     preserveDrawingBuffer: true,
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  
+  // Detect mobile device
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+  const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(pixelRatio);
+  
+  // Calculate aspect ratio from image
+  let imageAspectRatio = 16 / 9; // Default, will be updated when image loads
+  let canvasWidth = window.innerWidth;
+  let canvasHeight = window.innerHeight;
+  
+  const updateCanvasSize = () => {
+    const viewportAspect = window.innerWidth / window.innerHeight;
+    
+    if (viewportAspect > imageAspectRatio) {
+      // Viewport is wider than image - fit to height
+      canvasHeight = window.innerHeight;
+      canvasWidth = canvasHeight * imageAspectRatio;
+    } else {
+      // Viewport is taller than image - fit to width
+      canvasWidth = window.innerWidth;
+      canvasHeight = canvasWidth / imageAspectRatio;
+    }
+    
+    renderer.setSize(canvasWidth, canvasHeight);
+    const renderWidth = canvasWidth * pixelRatio;
+    const renderHeight = canvasHeight * pixelRatio;
+    rtA.setSize(renderWidth, renderHeight);
+    rtB.setSize(renderWidth, renderHeight);
+    simMaterial.uniforms.resolution.value.set(renderWidth, renderHeight);
+  };
+  
+  renderer.setSize(canvasWidth, canvasHeight);
   document.body.appendChild(renderer.domElement);
 
   const mouse = new THREE.Vector2();
   let frame = 0;
 
-  const width = window.innerWidth * window.devicePixelRatio;
-  const height = window.innerHeight * window.devicePixelRatio;
+  // Initialize render targets with temporary size, will be updated when image loads
+  const initialWidth = canvasWidth * pixelRatio;
+  const initialHeight = canvasHeight * pixelRatio;
+  
+  // Check WebGL support and choose appropriate texture type for mobile compatibility
+  const gl = renderer.getContext();
+  let textureType = THREE.FloatType;
+  
+  // Test if FloatType is supported (required for high precision)
+  const testTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, testTexture);
+  try {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, null);
+    if (gl.getError() !== gl.NO_ERROR) {
+      throw new Error("FloatType not supported");
+    }
+  } catch (e) {
+    // Fallback to HalfFloatType (better mobile support)
+    try {
+      const ext = gl.getExtension("OES_texture_half_float");
+      if (ext) {
+        textureType = THREE.HalfFloatType;
+        console.log("Using HalfFloatType for better mobile compatibility");
+      } else {
+        // Final fallback to UnsignedByteType (universal support, lower precision)
+        textureType = THREE.UnsignedByteType;
+        console.log("Using UnsignedByteType - effect may have reduced quality");
+      }
+    } catch (e2) {
+      textureType = THREE.UnsignedByteType;
+      console.log("Using UnsignedByteType - effect may have reduced quality");
+    }
+  }
+  gl.deleteTexture(testTexture);
+  
   const options = {
     format: THREE.RGBAFormat,
-    type: THREE.FloatType,
+    type: textureType,
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
     stencilBuffer: false,
     depthBuffer: false,
   };
-  let rtA = new THREE.WebGLRenderTarget(width, height, options);
-  let rtB = new THREE.WebGLRenderTarget(width, height, options);
+  let rtA = new THREE.WebGLRenderTarget(initialWidth, initialHeight, options);
+  let rtB = new THREE.WebGLRenderTarget(initialWidth, initialHeight, options);
 
   const simMaterial = new THREE.ShaderMaterial({
     uniforms: {
       textureA: { value: null },
       mouse: { value: mouse },
-      resolution: { value: new THREE.Vector2(width, height) },
+      resolution: { value: new THREE.Vector2(initialWidth, initialHeight) },
       time: { value: 0 },
       frame: { value: 0 },
+      isMobile: { value: isMobile ? 1.0 : 0.0 },
     },
     vertexShader: simulationVertexShader,
     fragmentShader: simulationFragmentShader,
@@ -52,6 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
     uniforms: {
       textureA: { value: null },
       textureB: { value: null },
+      isMobile: { value: isMobile ? 1.0 : 0.0 },
     },
     vertexShader: renderVertexShader,
     fragmentShader: renderFragmentShader,
@@ -74,7 +154,12 @@ document.addEventListener("DOMContentLoaded", () => {
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
       texture.format = THREE.RGBAFormat;
-      console.log("Image loaded successfully");
+      
+      // Update aspect ratio based on actual image dimensions
+      imageAspectRatio = texture.image.width / texture.image.height;
+      updateCanvasSize();
+      
+      console.log("Image loaded successfully", texture.image.width, texture.image.height);
     },
     undefined,
     (error) => {
@@ -99,14 +184,8 @@ document.addEventListener("DOMContentLoaded", () => {
   imageTexture.format = THREE.RGBAFormat;
 
   window.addEventListener("resize", () => {
-    const newWidth = window.innerWidth * window.devicePixelRatio;
-    const newHeight = window.innerHeight * window.devicePixelRatio;
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    rtA.setSize(newWidth, newHeight);
-    rtB.setSize(newWidth, newHeight);
-    simMaterial.uniforms.resolution.value.set(newWidth, newHeight);
-
+    updateCanvasSize();
+    
     // Image texture will automatically handle resize
     if (imageTexture) {
       imageTexture.needsUpdate = true;
@@ -114,8 +193,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   renderer.domElement.addEventListener("mousemove", (e) => {
-    mouse.x = e.clientX * window.devicePixelRatio;
-    mouse.y = (window.innerHeight - e.clientY) * window.devicePixelRatio;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * canvasWidth * pixelRatio;
+    const y = ((rect.height - (e.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
+    mouse.x = x;
+    mouse.y = y;
   });
 
   renderer.domElement.addEventListener("mouseleave", () => {
@@ -127,8 +209,11 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     if (e.touches.length > 0) {
       const touch = e.touches[0];
-      mouse.x = touch.clientX * window.devicePixelRatio;
-      mouse.y = (window.innerHeight - touch.clientY) * window.devicePixelRatio;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = ((touch.clientX - rect.left) / rect.width) * canvasWidth * pixelRatio;
+      const y = ((rect.height - (touch.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
+      mouse.x = x;
+      mouse.y = y;
     }
   }, { passive: false });
 
@@ -136,8 +221,11 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     if (e.touches.length > 0) {
       const touch = e.touches[0];
-      mouse.x = touch.clientX * window.devicePixelRatio;
-      mouse.y = (window.innerHeight - touch.clientY) * window.devicePixelRatio;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = ((touch.clientX - rect.left) / rect.width) * canvasWidth * pixelRatio;
+      const y = ((rect.height - (touch.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
+      mouse.x = x;
+      mouse.y = y;
     }
   }, { passive: false });
 

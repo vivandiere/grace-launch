@@ -12,6 +12,7 @@ uniform vec2 mouse;
 uniform vec2 resolution;
 uniform float time;
 uniform int frame;
+uniform float isMobile;
 varying vec2 vUv;
 
 const float delta = 1.4;  
@@ -52,9 +53,11 @@ void main() {
     vec2 mouseUV = mouse / resolution;
     if(mouse.x > 0.0) {
         float dist = distance(uv, mouseUV);
-        if(dist <= 0.025) {  // Smaller radius for more subtle ripples
-            float falloff = 1.0 - dist / 0.025;
-            pressure += 1.2 * falloff * falloff;  // Reduced intensity
+        float touchRadius = mix(0.025, 0.04, isMobile);  // Larger radius on mobile
+        if(dist <= touchRadius) {
+            float falloff = 1.0 - dist / touchRadius;
+            float intensity = mix(1.2, 2.0, isMobile);  // Stronger on mobile
+            pressure += intensity * falloff * falloff;
         }
     }
     
@@ -78,9 +81,10 @@ void main() {
     float ripple2 = sin(dist2 * 7.0 - time * 1.0) * exp(-dist2 * 3.5) * 0.07;
     float ripple3 = sin(dist3 * 9.0 - time * 1.4) * exp(-dist3 * 2.8) * 0.09;
     
-    // Combine all ambient waves
+    // Combine all ambient waves - increase intensity on mobile
     float ambientWave = wave1 + wave2 + wave3 + ripple1 + ripple2 + ripple3;
-    pressure += ambientWave * 0.35;  // Increased to make effect more visible on image
+    float ambientIntensity = mix(0.35, 0.55, isMobile);  // More visible on mobile
+    pressure += ambientWave * ambientIntensity;
     
     gl_FragColor = vec4(pressure, pVel, 
         (p_right - p_left) / 2.0, 
@@ -99,13 +103,15 @@ void main() {
 export const renderFragmentShader = `
 uniform sampler2D textureA;
 uniform sampler2D textureB;
+uniform float isMobile;
 varying vec2 vUv;
 
 void main() {
     vec4 data = texture2D(textureA, vUv);
     
-    // Subtle distortion that makes ambient waves visible on image
-    vec2 distortion = 0.35 * data.zw;
+    // Increase distortion intensity on mobile for better visibility
+    float distortionStrength = mix(0.35, 0.5, isMobile);
+    vec2 distortion = distortionStrength * data.zw;
     
     // Clamp UV coordinates to prevent black edges
     vec2 distortedUV = clamp(vUv + distortion, 0.001, 0.999);
@@ -115,24 +121,28 @@ void main() {
     vec3 normal = normalize(vec3(-data.z * 2.0, 0.5, -data.w * 2.0));
     vec3 lightDir = normalize(vec3(-3.0, 10.0, 3.0));
     
-    // Reduced specular highlights
-    float specular1 = pow(max(0.0, dot(normal, lightDir)), 60.0) * 0.8;
-    float specular2 = pow(max(0.0, dot(normal, normalize(vec3(5.0, 8.0, -2.0)))), 80.0) * 0.5;
+    // Increased specular highlights on mobile
+    float specular1 = pow(max(0.0, dot(normal, lightDir)), 60.0) * mix(0.8, 1.2, isMobile);
+    float specular2 = pow(max(0.0, dot(normal, normalize(vec3(5.0, 8.0, -2.0)))), 80.0) * mix(0.5, 0.8, isMobile);
     
     // Add subtle refraction by sampling slightly offset positions
     vec3 refracted1 = texture2D(textureB, clamp(vUv + distortion * 0.5, 0.001, 0.999)).rgb;
     vec3 refracted2 = texture2D(textureB, clamp(vUv + distortion * 0.3, 0.001, 0.999)).rgb;
     
-    // Reduced mixing for subtler refraction
-    color.rgb = mix(color.rgb, refracted1, 0.08);
-    color.rgb = mix(color.rgb, refracted2, 0.05);
+    // Increase refraction mixing on mobile
+    float refractionMix1 = mix(0.08, 0.12, isMobile);
+    float refractionMix2 = mix(0.05, 0.08, isMobile);
+    color.rgb = mix(color.rgb, refracted1, refractionMix1);
+    color.rgb = mix(color.rgb, refracted2, refractionMix2);
     
-    // Reduced specular highlights
-    color.rgb += vec3(specular1 + specular2) * 0.4;
+    // Increased specular highlights on mobile
+    float specularIntensity = mix(0.4, 0.6, isMobile);
+    color.rgb += vec3(specular1 + specular2) * specularIntensity;
     
-    // Subtle brightness variation based on wave intensity
+    // Enhanced brightness variation on mobile
     float waveIntensity = length(data.zw);
-    color.rgb += vec3(0.03) * sin(waveIntensity * 30.0) * 0.2;
+    float brightnessVariation = mix(0.2, 0.35, isMobile);
+    color.rgb += vec3(0.03) * sin(waveIntensity * 30.0) * brightnessVariation;
     
     gl_FragColor = color;
 }
