@@ -53,10 +53,10 @@ void main() {
     vec2 mouseUV = mouse / resolution;
     if(mouse.x > 0.0) {
         float dist = distance(uv, mouseUV);
-        float touchRadius = mix(0.025, 0.04, isMobile);  // Larger radius on mobile
+        float touchRadius = mix(0.04, 0.07, isMobile);  // Wider radius on mobile
         if(dist <= touchRadius) {
             float falloff = 1.0 - dist / touchRadius;
-            float intensity = mix(1.2, 2.0, isMobile);  // Stronger on mobile
+            float intensity = mix(0.8, 1.1, isMobile);  // Softer impact on mobile
             pressure += intensity * falloff * falloff;
         }
     }
@@ -81,9 +81,9 @@ void main() {
     float ripple2 = sin(dist2 * 7.0 - time * 1.0) * exp(-dist2 * 3.5) * 0.07;
     float ripple3 = sin(dist3 * 9.0 - time * 1.4) * exp(-dist3 * 2.8) * 0.09;
     
-    // Combine all ambient waves - significantly increase intensity on mobile
+    // Combine all ambient waves - noticeable but softer on mobile
     float ambientWave = wave1 + wave2 + wave3 + ripple1 + ripple2 + ripple3;
-    float ambientIntensity = mix(0.35, 0.8, isMobile);  // Much more visible on mobile
+    float ambientIntensity = mix(0.35, 0.6, isMobile);  // Balanced visibility on mobile
     pressure += ambientWave * ambientIntensity;
     
     gl_FragColor = vec4(pressure, pVel, 
@@ -112,8 +112,8 @@ varying vec2 vUv;
 void main() {
     vec4 data = texture2D(textureA, vUv);
     
-    // Significantly increase distortion intensity on mobile for better visibility
-    float distortionStrength = mix(0.35, 0.8, isMobile);
+    // Moderate distortion, softer but still noticeable on mobile
+    float distortionStrength = mix(0.35, 0.55, isMobile);
     vec2 distortion = distortionStrength * data.zw;
     
     // Simple approach: use vUv directly and let the image fill naturally

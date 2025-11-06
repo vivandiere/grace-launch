@@ -76,42 +76,53 @@ document.addEventListener("DOMContentLoaded", () => {
   const initialWidth = canvasWidth * pixelRatio;
   const initialHeight = canvasHeight * pixelRatio;
   
-  // Check WebGL support and choose appropriate texture type for mobile compatibility
+  // Determine the best render target texture type for this device
   const gl = renderer.getContext();
-  let textureType = THREE.FloatType;
+  const extensions = renderer.extensions;
+  const capabilities = renderer.capabilities;
+  const isWebGL2 = capabilities.isWebGL2;
   
-  // Test if FloatType is supported (required for high precision)
-  const testTexture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, testTexture);
-  try {
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, 1, 1, 0, gl.RGBA, gl.FLOAT, null);
-    if (gl.getError() !== gl.NO_ERROR) {
-      throw new Error("FloatType not supported");
-    }
-  } catch (e) {
-    // Fallback to HalfFloatType (better mobile support)
-    try {
-      const ext = gl.getExtension("OES_texture_half_float");
-      if (ext) {
-        textureType = THREE.HalfFloatType;
-        console.log("Using HalfFloatType for better mobile compatibility");
-      } else {
-        // Final fallback to UnsignedByteType (universal support, lower precision)
-        textureType = THREE.UnsignedByteType;
-        console.log("Using UnsignedByteType - effect may have reduced quality");
+  const hasFloatTexture = isWebGL2 || extensions.has("OES_texture_float");
+  const hasFloatRenderTarget = isWebGL2
+    ? extensions.has("EXT_color_buffer_float")
+    : extensions.has("WEBGL_color_buffer_float");
+  const hasFloatLinear = isWebGL2 || extensions.has("OES_texture_float_linear");
+  
+  const hasHalfFloatTexture = isWebGL2 || extensions.has("OES_texture_half_float");
+  const hasHalfFloatRenderTarget = isWebGL2
+    ? extensions.has("EXT_color_buffer_float")
+    : extensions.has("EXT_color_buffer_half_float");
+  const hasHalfFloatLinear = isWebGL2 || extensions.has("OES_texture_half_float_linear");
+  
+  let textureType = THREE.FloatType;
+  let minMagFilter = THREE.LinearFilter;
+  
+  if (!(hasFloatTexture && hasFloatRenderTarget)) {
+    if (hasHalfFloatTexture && hasHalfFloatRenderTarget) {
+      textureType = THREE.HalfFloatType;
+      if (!hasHalfFloatLinear) {
+        minMagFilter = THREE.NearestFilter;
       }
-    } catch (e2) {
-      textureType = THREE.UnsignedByteType;
-      console.log("Using UnsignedByteType - effect may have reduced quality");
+      console.log("Using HalfFloatType for better compatibility");
+    } else {
+      document.body.innerHTML = `
+        <div style="color: white; text-align: center; padding: 48px; font-family: Arial, sans-serif;">
+          <h2>Device Not Supported</h2>
+          <p>Your browser or device doesn’t support the WebGL features required for this water effect.</p>
+          <p>Please try updating your browser or using a device with WebGL 2 / float textures.</p>
+        </div>
+      `;
+      return;
     }
+  } else if (!hasFloatLinear) {
+    minMagFilter = THREE.NearestFilter;
   }
-  gl.deleteTexture(testTexture);
   
   const options = {
     format: THREE.RGBAFormat,
     type: textureType,
-    minFilter: THREE.LinearFilter,
-    magFilter: THREE.LinearFilter,
+    minFilter: minMagFilter,
+    magFilter: minMagFilter,
     stencilBuffer: false,
     depthBuffer: false,
     wrapS: THREE.ClampToEdgeWrapping,
@@ -184,11 +195,6 @@ document.addEventListener("DOMContentLoaded", () => {
       
       console.log("Image loaded successfully", texture.image.width, texture.image.height);
       
-      // Start animation once image is loaded
-      if (!animationStarted) {
-        animationStarted = true;
-        animate();
-      }
     },
     undefined,
     (error) => {
@@ -203,7 +209,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const fallbackTexture = new THREE.CanvasTexture(canvas);
       fallbackTexture.minFilter = THREE.LinearFilter;
       fallbackTexture.magFilter = THREE.LinearFilter;
+      fallbackTexture.wrapS = THREE.ClampToEdgeWrapping;
+      fallbackTexture.wrapT = THREE.ClampToEdgeWrapping;
       imageTexture = fallbackTexture;
+      imageLoaded = true;
     }
   );
   
@@ -241,7 +250,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const y = ((rect.height - (touch.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
       mouse.x = x;
       mouse.y = y;
-      console.log("Touch move:", mouse.x, mouse.y);
     }
   }, { passive: false });
 
@@ -254,7 +262,6 @@ document.addEventListener("DOMContentLoaded", () => {
       const y = ((rect.height - (touch.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
       mouse.x = x;
       mouse.y = y;
-      console.log("Touch start:", mouse.x, mouse.y);
     }
   }, { passive: false });
 
@@ -262,7 +269,6 @@ document.addEventListener("DOMContentLoaded", () => {
     mouse.set(0, 0);
   });
 
-  let animationStarted = false;
   let debugLogged = false;
   
   const animate = () => {
@@ -305,6 +311,6 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(animate);
   };
 
-  // Start animation loop (will wait for image to load)
+  // Start animation loop (will wait for textures to become ready)
   animate();
 });
