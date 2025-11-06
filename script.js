@@ -8,8 +8,8 @@ import {
 document.addEventListener("DOMContentLoaded", () => {
   // Check WebGL support
   const canvas = document.createElement("canvas");
-  const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-  if (!gl) {
+  const testGl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+  if (!testGl) {
     document.body.innerHTML = `
       <div style="color: white; text-align: center; padding: 50px; font-family: Arial, sans-serif;">
         <h2>WebGL Not Supported</h2>
