@@ -241,6 +241,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const y = ((rect.height - (touch.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
       mouse.x = x;
       mouse.y = y;
+      console.log("Touch move:", mouse.x, mouse.y);
     }
   }, { passive: false });
 
@@ -253,6 +254,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const y = ((rect.height - (touch.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
       mouse.x = x;
       mouse.y = y;
+      console.log("Touch start:", mouse.x, mouse.y);
     }
   }, { passive: false });
 
@@ -261,6 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   let animationStarted = false;
+  let debugLogged = false;
   
   const animate = () => {
     simMaterial.uniforms.frame.value = frame++;
@@ -270,6 +273,20 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!imageLoaded || !imageTexture || !rtA || !rtB) {
       requestAnimationFrame(animate);
       return;
+    }
+
+    // Debug log once
+    if (!debugLogged && frame === 10) {
+      debugLogged = true;
+      console.log("Animation running:", {
+        isMobile,
+        frame,
+        canvasWidth,
+        canvasHeight,
+        pixelRatio,
+        textureType: textureType === THREE.FloatType ? "Float" : 
+                     textureType === THREE.HalfFloatType ? "HalfFloat" : "UnsignedByte"
+      });
     }
 
     simMaterial.uniforms.textureA.value = rtA.texture;
