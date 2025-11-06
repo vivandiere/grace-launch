@@ -116,27 +116,12 @@ void main() {
     float distortionStrength = mix(0.35, 0.5, isMobile);
     vec2 distortion = distortionStrength * data.zw;
     
-    // Calculate 16:9 crop to fill viewport
-    // If viewport is taller than 16:9, crop top/bottom (center vertical crop)
-    // If viewport is wider than 16:9, crop left/right (center horizontal crop)
-    vec2 uv = vUv;
-    float targetAspect = 16.0 / 9.0;
-    
-    if (viewportAspect < targetAspect) {
-        // Viewport is taller - crop top/bottom, center vertically
-        float scale = viewportAspect / targetAspect;
-        uv.y = (uv.y - 0.5) / scale + 0.5;
-    } else {
-        // Viewport is wider - crop left/right, center horizontally
-        float scale = targetAspect / viewportAspect;
-        uv.x = (uv.x - 0.5) / scale + 0.5;
-    }
-    
+    // Simple approach: use vUv directly and let the image fill naturally
     // Apply distortion
-    vec2 distortedUV = uv + distortion;
+    vec2 distortedUV = vUv + distortion;
     
-    // Clamp to prevent black edges
-    distortedUV = clamp(distortedUV, 0.001, 0.999);
+    // Clamp to valid texture coordinates to prevent artifacts
+    distortedUV = clamp(distortedUV, 0.0, 1.0);
     
     vec4 color = texture2D(textureB, distortedUV);
     
@@ -149,8 +134,10 @@ void main() {
     float specular2 = pow(max(0.0, dot(normal, normalize(vec3(5.0, 8.0, -2.0)))), 80.0) * mix(0.5, 0.8, isMobile);
     
     // Add subtle refraction by sampling slightly offset positions
-    vec2 refractedUV1 = clamp(uv + distortion * 0.5, 0.001, 0.999);
-    vec2 refractedUV2 = clamp(uv + distortion * 0.3, 0.001, 0.999);
+    vec2 refractedUV1 = uv + distortion * 0.5;
+    vec2 refractedUV2 = uv + distortion * 0.3;
+    refractedUV1 = clamp(refractedUV1, 0.0, 1.0);
+    refractedUV2 = clamp(refractedUV2, 0.0, 1.0);
     vec3 refracted1 = texture2D(textureB, refractedUV1).rgb;
     vec3 refracted2 = texture2D(textureB, refractedUV2).rgb;
     

@@ -161,6 +161,8 @@ document.addEventListener("DOMContentLoaded", () => {
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
       texture.format = THREE.RGBAFormat;
+      texture.wrapS = THREE.ClampToEdgeWrapping;
+      texture.wrapT = THREE.ClampToEdgeWrapping;
       
       // Force 16:9 aspect ratio (don't use actual image dimensions)
       // Image will be cropped to 16:9 in the shader
@@ -189,6 +191,8 @@ document.addEventListener("DOMContentLoaded", () => {
   imageTexture.minFilter = THREE.LinearFilter;
   imageTexture.magFilter = THREE.LinearFilter;
   imageTexture.format = THREE.RGBAFormat;
+  imageTexture.wrapS = THREE.ClampToEdgeWrapping;
+  imageTexture.wrapT = THREE.ClampToEdgeWrapping;
 
   window.addEventListener("resize", () => {
     updateCanvasSize();
