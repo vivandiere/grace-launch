@@ -114,9 +114,17 @@ document.addEventListener("DOMContentLoaded", () => {
     magFilter: THREE.LinearFilter,
     stencilBuffer: false,
     depthBuffer: false,
+    wrapS: THREE.ClampToEdgeWrapping,
+    wrapT: THREE.ClampToEdgeWrapping,
   };
   let rtA = new THREE.WebGLRenderTarget(initialWidth, initialHeight, options);
   let rtB = new THREE.WebGLRenderTarget(initialWidth, initialHeight, options);
+  
+  // Ensure render target textures have proper wrapping
+  rtA.texture.wrapS = THREE.ClampToEdgeWrapping;
+  rtA.texture.wrapT = THREE.ClampToEdgeWrapping;
+  rtB.texture.wrapS = THREE.ClampToEdgeWrapping;
+  rtB.texture.wrapT = THREE.ClampToEdgeWrapping;
 
   const simMaterial = new THREE.ShaderMaterial({
     uniforms: {
@@ -248,6 +256,12 @@ document.addEventListener("DOMContentLoaded", () => {
     simMaterial.uniforms.frame.value = frame++;
     simMaterial.uniforms.time.value = performance.now() / 1000;
 
+    // Ensure textures are ready
+    if (!imageTexture || !rtA || !rtB) {
+      requestAnimationFrame(animate);
+      return;
+    }
+
     simMaterial.uniforms.textureA.value = rtA.texture;
     renderer.setRenderTarget(rtB);
     renderer.render(simScene, camera);
@@ -264,5 +278,8 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(animate);
   };
 
-  animate();
+  // Start animation after a short delay to ensure everything is loaded
+  setTimeout(() => {
+    animate();
+  }, 100);
 });
