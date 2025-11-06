@@ -134,8 +134,8 @@ void main() {
     float specular2 = pow(max(0.0, dot(normal, normalize(vec3(5.0, 8.0, -2.0)))), 80.0) * mix(0.5, 0.8, isMobile);
     
     // Add subtle refraction by sampling slightly offset positions
-    vec2 refractedUV1 = uv + distortion * 0.5;
-    vec2 refractedUV2 = uv + distortion * 0.3;
+    vec2 refractedUV1 = vUv + distortion * 0.5;
+    vec2 refractedUV2 = vUv + distortion * 0.3;
     refractedUV1 = clamp(refractedUV1, 0.0, 1.0);
     refractedUV2 = clamp(refractedUV2, 0.0, 1.0);
     vec3 refracted1 = texture2D(textureB, refractedUV1).rgb;
