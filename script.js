@@ -162,7 +162,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Load image texture instead of canvas text
   const textureLoader = new THREE.TextureLoader();
-  let imageTexture = textureLoader.load(
+  let imageTexture = null;
+  let imageLoaded = false;
+  
+  textureLoader.load(
     "./assets/ship-render-text.jpg",
     (texture) => {
       // Texture loaded successfully
@@ -172,11 +175,20 @@ document.addEventListener("DOMContentLoaded", () => {
       texture.wrapS = THREE.ClampToEdgeWrapping;
       texture.wrapT = THREE.ClampToEdgeWrapping;
       
+      imageTexture = texture;
+      imageLoaded = true;
+      
       // Force 16:9 aspect ratio (don't use actual image dimensions)
       // Image will be cropped to 16:9 in the shader
       updateCanvasSize();
       
       console.log("Image loaded successfully", texture.image.width, texture.image.height);
+      
+      // Start animation once image is loaded
+      if (!animationStarted) {
+        animationStarted = true;
+        animate();
+      }
     },
     undefined,
     (error) => {
@@ -195,12 +207,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   );
   
-  // Set texture properties
-  imageTexture.minFilter = THREE.LinearFilter;
-  imageTexture.magFilter = THREE.LinearFilter;
-  imageTexture.format = THREE.RGBAFormat;
-  imageTexture.wrapS = THREE.ClampToEdgeWrapping;
-  imageTexture.wrapT = THREE.ClampToEdgeWrapping;
+  // Set texture properties (will be set in load callback if image loads)
+  // Don't set here as imageTexture might be null initially
 
   window.addEventListener("resize", () => {
     updateCanvasSize();
@@ -252,12 +260,14 @@ document.addEventListener("DOMContentLoaded", () => {
     mouse.set(0, 0);
   });
 
+  let animationStarted = false;
+  
   const animate = () => {
     simMaterial.uniforms.frame.value = frame++;
     simMaterial.uniforms.time.value = performance.now() / 1000;
 
-    // Ensure textures are ready
-    if (!imageTexture || !rtA || !rtB) {
+    // Ensure textures are ready before rendering
+    if (!imageLoaded || !imageTexture || !rtA || !rtB) {
       requestAnimationFrame(animate);
       return;
     }
@@ -278,8 +288,6 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(animate);
   };
 
-  // Start animation after a short delay to ensure everything is loaded
-  setTimeout(() => {
-    animate();
-  }, 100);
+  // Start animation loop (will wait for image to load)
+  animate();
 });
