@@ -36,29 +36,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
   renderer.setPixelRatio(pixelRatio);
   
-  // Force 16:9 aspect ratio for image
+  // Force 16:9 aspect ratio for image content
   const imageAspectRatio = 16 / 9;
   let canvasWidth = window.innerWidth;
   let canvasHeight = window.innerHeight;
   
   const updateCanvasSize = () => {
-    const viewportAspect = window.innerWidth / window.innerHeight;
-    
-    // Use "cover" behavior: canvas should always fill viewport, maintain 16:9 internally
-    // For mobile (tall screens), fill width and let height extend
-    // For desktop (wide screens), fill height and let width extend
-    if (viewportAspect > imageAspectRatio) {
-      // Viewport is wider than 16:9 - fill height, extend width
-      canvasHeight = window.innerHeight;
-      canvasWidth = canvasHeight * imageAspectRatio;
-    } else {
-      // Viewport is taller than 16:9 - fill width, extend height
-      canvasWidth = window.innerWidth;
-      canvasHeight = canvasWidth / imageAspectRatio;
-    }
-    
-    // Canvas will be larger than viewport in one dimension to maintain 16:9
-    // CSS object-fit: cover will handle the visual cropping
+    // Canvas always fills viewport
+    canvasWidth = window.innerWidth;
+    canvasHeight = window.innerHeight;
+    const viewportAspect = canvasWidth / canvasHeight;
     
     renderer.setSize(canvasWidth, canvasHeight);
     const renderWidth = canvasWidth * pixelRatio;
@@ -67,12 +54,15 @@ document.addEventListener("DOMContentLoaded", () => {
     rtB.setSize(renderWidth, renderHeight);
     simMaterial.uniforms.resolution.value.set(renderWidth, renderHeight);
     
-    // Update image texture aspect ratio uniform for shader cropping
+    // Update uniforms for shader to handle 16:9 cropping
     if (renderMaterial.uniforms.imageAspectRatio) {
       renderMaterial.uniforms.imageAspectRatio.value = imageAspectRatio;
     }
     if (renderMaterial.uniforms.viewportAspect) {
       renderMaterial.uniforms.viewportAspect.value = viewportAspect;
+    }
+    if (renderMaterial.uniforms.canvasSize) {
+      renderMaterial.uniforms.canvasSize.value.set(canvasWidth, canvasHeight);
     }
   };
   
@@ -148,6 +138,7 @@ document.addEventListener("DOMContentLoaded", () => {
       isMobile: { value: isMobile ? 1.0 : 0.0 },
       imageAspectRatio: { value: imageAspectRatio },
       viewportAspect: { value: window.innerWidth / window.innerHeight },
+      canvasSize: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
     },
     vertexShader: renderVertexShader,
     fragmentShader: renderFragmentShader,

@@ -106,18 +106,8 @@ uniform sampler2D textureB;
 uniform float isMobile;
 uniform float imageAspectRatio;
 uniform float viewportAspect;
+uniform vec2 canvasSize;
 varying vec2 vUv;
-
-// Function to crop image to 16:9 aspect ratio (center crop)
-vec2 cropTo16_9(vec2 uv) {
-    // Target aspect ratio is 16:9
-    float targetAspect = 16.0 / 9.0;
-    
-    // We assume the texture might not be 16:9, so we need to crop it
-    // For now, we'll use the UV as-is since we're forcing 16:9 canvas
-    // But we can add actual image aspect ratio if needed
-    return uv;
-}
 
 void main() {
     vec4 data = texture2D(textureA, vUv);
@@ -126,12 +116,26 @@ void main() {
     float distortionStrength = mix(0.35, 0.5, isMobile);
     vec2 distortion = distortionStrength * data.zw;
     
-    // Apply distortion and crop to 16:9
-    vec2 distortedUV = vUv + distortion;
-    
-    // Crop to 16:9 center crop if needed
+    // Calculate 16:9 crop to fill viewport
+    // If viewport is taller than 16:9, crop top/bottom (center vertical crop)
+    // If viewport is wider than 16:9, crop left/right (center horizontal crop)
+    vec2 uv = vUv;
     float targetAspect = 16.0 / 9.0;
-    // For now, just clamp to prevent black edges
+    
+    if (viewportAspect < targetAspect) {
+        // Viewport is taller - crop top/bottom, center vertically
+        float scale = viewportAspect / targetAspect;
+        uv.y = (uv.y - 0.5) / scale + 0.5;
+    } else {
+        // Viewport is wider - crop left/right, center horizontally
+        float scale = targetAspect / viewportAspect;
+        uv.x = (uv.x - 0.5) / scale + 0.5;
+    }
+    
+    // Apply distortion
+    vec2 distortedUV = uv + distortion;
+    
+    // Clamp to prevent black edges
     distortedUV = clamp(distortedUV, 0.001, 0.999);
     
     vec4 color = texture2D(textureB, distortedUV);
@@ -145,8 +149,8 @@ void main() {
     float specular2 = pow(max(0.0, dot(normal, normalize(vec3(5.0, 8.0, -2.0)))), 80.0) * mix(0.5, 0.8, isMobile);
     
     // Add subtle refraction by sampling slightly offset positions
-    vec2 refractedUV1 = clamp(vUv + distortion * 0.5, 0.001, 0.999);
-    vec2 refractedUV2 = clamp(vUv + distortion * 0.3, 0.001, 0.999);
+    vec2 refractedUV1 = clamp(uv + distortion * 0.5, 0.001, 0.999);
+    vec2 refractedUV2 = clamp(uv + distortion * 0.3, 0.001, 0.999);
     vec3 refracted1 = texture2D(textureB, refractedUV1).rgb;
     vec3 refracted2 = texture2D(textureB, refractedUV2).rgb;
     
