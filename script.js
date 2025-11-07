@@ -14,18 +14,18 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.style.touchAction = "none";
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
-  const rippleRadius = 26;
-  const rippleForce = isMobile ? 360 : 460;
-  const randomForce = rippleForce * 0.78;
-  const randomRadius = rippleRadius + 1;
-  const hoverForce = rippleForce * 0.2;
-  const hoverRadius = Math.max(12, rippleRadius - 12);
-  const hoverInterval = 40;
-  const clickForce = rippleForce * 1.4;
-  const clickRadius = rippleRadius + 6;
-  const dragForceDesktop = rippleForce * 0.65;
-  const dragForceDefault = rippleForce * 0.5;
-  const dragRadiusDesktop = rippleRadius + 2;
+  const rippleRadius = isMobile ? 20 : 32;
+  const rippleForce = isMobile ? 360 : 420;
+  const randomForce = rippleForce * 0.75;
+  const randomRadius = rippleRadius + 2;
+  const hoverForce = rippleForce * 0.18;
+  const hoverRadius = isMobile ? rippleRadius - 6 : rippleRadius - 10;
+  const hoverInterval = isMobile ? 55 : 45;
+  const clickForce = rippleForce * 1.35;
+  const clickRadius = rippleRadius + 8;
+  const dragForceDesktop = rippleForce * 0.6;
+  const dragForceDefault = rippleForce * 0.48;
+  const dragRadiusDesktop = rippleRadius + 4;
   const dampingShift = 4;
 
   let aspectRatio = 16 / 9;
@@ -137,15 +137,28 @@ document.addEventListener("DOMContentLoaded", () => {
   function disturb(x, y, force = rippleForce, radius = rippleRadius) {
     if (!rippleMap) return;
 
-    x = x << 0;
-    y = y << 0;
+    const radiusInt = Math.max(2, Math.ceil(radius));
+    const radiusSq = radius * radius;
+    const baseForce = force;
 
-    for (let j = y - radius; j < y + radius; j++) {
+    const centerX = Math.round(x);
+    const centerY = Math.round(y);
+
+    for (let j = centerY - radiusInt; j <= centerY + radiusInt; j++) {
       if (j < 0 || j >= simHeight) continue;
-      let mapIndex = oldIndex + j * simWidth;
-      for (let k = x - radius; k < x + radius; k++) {
+      const dy = j - centerY;
+      const dySq = dy * dy;
+      const rowIndex = oldIndex + j * simWidth;
+      for (let k = centerX - radiusInt; k <= centerX + radiusInt; k++) {
         if (k < 0 || k >= simWidth) continue;
-        rippleMap[mapIndex + k] += force;
+        const dx = k - centerX;
+        const distSq = dx * dx + dySq;
+        if (distSq > radiusSq) continue;
+        const dist = Math.sqrt(distSq);
+        const falloff = 1 - dist / radius;
+        if (falloff <= 0) continue;
+        const weightedForce = baseForce * falloff * falloff;
+        rippleMap[rowIndex + k] += weightedForce;
       }
     }
   }
@@ -168,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const _halfWidth = halfWidth;
     const _halfHeight = halfHeight;
 
-    const refractionScale = isMobile ? 0.6 : 0.68;
+    const refractionScale = isMobile ? 0.65 : 0.75;
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
