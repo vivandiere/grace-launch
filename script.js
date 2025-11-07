@@ -18,6 +18,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const rippleForce = isMobile ? 320 : 340;
   const randomForce = rippleForce * 0.85;
   const randomRadius = rippleRadius + 1;
+  const hoverForce = rippleForce * 0.25;
+  const hoverRadius = Math.max(3, rippleRadius - 3);
+  const hoverInterval = 70;
+  const clickForce = rippleForce * 1.2;
+  const clickRadius = rippleRadius + 2;
+  const dragForceDesktop = rippleForce * 0.6;
+  const dragForceDefault = rippleForce * 0.5;
+  const dragRadiusDesktop = rippleRadius + 1;
   const dampingShift = 6;
 
   let aspectRatio = 16 / 9;
@@ -38,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let imageLoaded = false;
   let activePointerId = null;
   let pointerActive = false;
+  let lastHoverTime = 0;
 
   const image = new Image();
   image.src = "./assets/ship-render-text.jpg";
@@ -210,13 +219,25 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     activePointerId = event.pointerId;
     pointerActive = true;
-    disturbFromPointer(event, rippleForce, rippleRadius);
+    const force = !isMobile && event.pointerType === "mouse" ? clickForce : rippleForce;
+    const radius = !isMobile && event.pointerType === "mouse" ? clickRadius : rippleRadius;
+    disturbFromPointer(event, force, radius);
   }
 
   function handlePointerMove(event) {
+    if (!isMobile && event.pointerType === "mouse" && event.buttons === 0) {
+      const now = performance.now();
+      if (now - lastHoverTime >= hoverInterval) {
+        lastHoverTime = now;
+        disturbFromPointer(event, hoverForce, hoverRadius);
+      }
+    }
+
     if (!pointerActive || event.pointerId !== activePointerId) return;
     event.preventDefault();
-    disturbFromPointer(event, rippleForce * 0.5, rippleRadius);
+    const force = !isMobile && event.pointerType === "mouse" ? dragForceDesktop : dragForceDefault;
+    const radius = !isMobile && event.pointerType === "mouse" ? dragRadiusDesktop : rippleRadius;
+    disturbFromPointer(event, force, radius);
   }
 
   function handlePointerUp(event) {
