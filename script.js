@@ -16,7 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
   const rippleRadius = isMobile ? 6 : 5;
   const rippleForce = isMobile ? 384 : 512;
-  const randomForce = rippleForce * 0.7;
+  const randomForce = rippleForce * 0.85;
+  const randomRadius = rippleRadius + 2;
   const dampingShift = 5;
 
   let aspectRatio = 16 / 9;
@@ -118,17 +119,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     randomIntervalId = setInterval(() => {
       if (!rippleMap) return;
-      disturb(Math.random() * simWidth, Math.random() * simHeight, randomForce);
-    }, isMobile ? 1300 : 1600);
+      disturb(Math.random() * simWidth, Math.random() * simHeight, randomForce, randomRadius);
+    }, isMobile ? 900 : 1100);
   }
 
-  function disturb(x, y, force = rippleForce) {
+  function disturb(x, y, force = rippleForce, radius = rippleRadius) {
     if (!rippleMap) return;
 
     x = x << 0;
     y = y << 0;
-
-    const radius = rippleRadius;
 
     for (let j = y - radius; j < y + radius; j++) {
       if (j < 0 || j >= simHeight) continue;
@@ -208,13 +207,13 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     activePointerId = event.pointerId;
     pointerActive = true;
-    disturbFromPointer(event, rippleForce);
+    disturbFromPointer(event, rippleForce, rippleRadius);
   }
 
   function handlePointerMove(event) {
     if (!pointerActive || event.pointerId !== activePointerId) return;
     event.preventDefault();
-    disturbFromPointer(event, rippleForce * 0.6);
+    disturbFromPointer(event, rippleForce * 0.6, rippleRadius);
   }
 
   function handlePointerUp(event) {
@@ -223,13 +222,13 @@ document.addEventListener("DOMContentLoaded", () => {
     activePointerId = null;
   }
 
-  function disturbFromPointer(event, force) {
+  function disturbFromPointer(event, force, radius) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = simWidth / rect.width;
     const scaleY = simHeight / rect.height;
     const x = (event.clientX - rect.left) * scaleX;
     const y = (event.clientY - rect.top) * scaleY;
-    disturb(x, y, force);
+    disturb(x, y, force, radius);
   }
 
   canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
