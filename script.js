@@ -14,11 +14,11 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.style.touchAction = "none";
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
-  const rippleRadius = isMobile ? 8 : 8;
-  const rippleForce = isMobile ? 320 : 360;
+  const rippleRadius = 8;
+  const rippleForce = isMobile ? 320 : 340;
   const randomForce = rippleForce * 0.85;
-  const randomRadius = rippleRadius;
-  const dampingShift = 5;
+  const randomRadius = rippleRadius + 1;
+  const dampingShift = 6;
 
   let aspectRatio = 16 / 9;
   let simWidth = 0;
@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
     randomIntervalId = setInterval(() => {
       if (!rippleMap) return;
       disturb(Math.random() * simWidth, Math.random() * simHeight, randomForce, randomRadius);
-    }, isMobile ? 900 : 1100);
+    }, isMobile ? 1000 : 1300);
   }
 
   function disturb(x, y, force = rippleForce, radius = rippleRadius) {
@@ -213,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function handlePointerMove(event) {
     if (!pointerActive || event.pointerId !== activePointerId) return;
     event.preventDefault();
-    disturbFromPointer(event, rippleForce * 0.55, rippleRadius);
+    disturbFromPointer(event, rippleForce * 0.5, rippleRadius);
   }
 
   function handlePointerUp(event) {
