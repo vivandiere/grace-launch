@@ -14,18 +14,18 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.style.touchAction = "none";
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
-  const rippleRadius = 20;
-  const rippleForce = isMobile ? 320 : 380;
+  const rippleRadius = 16;
+  const rippleForce = isMobile ? 320 : 360;
   const randomForce = rippleForce * 0.85;
-  const randomRadius = rippleRadius + 3;
-  const hoverForce = rippleForce * 0.24;
-  const hoverRadius = Math.max(8, rippleRadius - 8);
-  const hoverInterval = 26;
-  const clickForce = rippleForce * 1.45;
-  const clickRadius = rippleRadius + 6;
-  const dragForceDesktop = rippleForce * 0.8;
-  const dragForceDefault = rippleForce * 0.55;
-  const dragRadiusDesktop = rippleRadius + 4;
+  const randomRadius = rippleRadius + 2;
+  const hoverForce = rippleForce * 0.22;
+  const hoverRadius = Math.max(6, rippleRadius - 6);
+  const hoverInterval = 30;
+  const clickForce = rippleForce * 1.3;
+  const clickRadius = rippleRadius + 4;
+  const dragForceDesktop = rippleForce * 0.7;
+  const dragForceDefault = rippleForce * 0.5;
+  const dragRadiusDesktop = rippleRadius + 3;
   const dampingShift = 5;
 
   let aspectRatio = 16 / 9;
@@ -283,7 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
           clientY: rect.top + lastPointerPos.y,
           pointerType: "mouse",
         };
-        disturbFromPointer(pointerEvent, hoverForce * 0.65, hoverRadius + 2);
+        disturbFromPointer(pointerEvent, hoverForce * 0.6, hoverRadius + 1);
       }
     }
     requestAnimationFrame(idleHoverDisturb);
