@@ -14,10 +14,10 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.style.touchAction = "none";
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
-  const rippleRadius = isMobile ? 6 : 5;
-  const rippleForce = isMobile ? 384 : 512;
-  const randomForce = rippleForce * 0.85;
-  const randomRadius = rippleRadius + 2;
+  const rippleRadius = isMobile ? 12 : 10;
+  const rippleForce = isMobile ? 320 : 448;
+  const randomForce = rippleForce * 0.9;
+  const randomRadius = Math.round(rippleRadius * 1.25);
   const dampingShift = 5;
 
   let aspectRatio = 16 / 9;
@@ -213,7 +213,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function handlePointerMove(event) {
     if (!pointerActive || event.pointerId !== activePointerId) return;
     event.preventDefault();
-    disturbFromPointer(event, rippleForce * 0.6, rippleRadius);
+    disturbFromPointer(event, rippleForce * 0.55, rippleRadius);
   }
 
   function handlePointerUp(event) {
