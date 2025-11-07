@@ -157,6 +157,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const _halfWidth = halfWidth;
     const _halfHeight = halfHeight;
 
+    const refractionScale = isMobile ? 0.55 : 0.5;
+
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         let data = (
@@ -176,8 +178,9 @@ document.addEventListener("DOMContentLoaded", () => {
         _lastMap[dataIndex] = data;
 
         if (oldData !== data) {
-          let a = (((x - _halfWidth) * data) / 1536) + _halfWidth;
-          let b = (((y - _halfHeight) * data) / 1536) + _halfHeight;
+          const wave = (data - 1024) / 1024;
+          let a = x + (x - _halfWidth) * wave * refractionScale;
+          let b = y + (y - _halfHeight) * wave * refractionScale;
 
           if (a >= width) a = width - 1;
           else if (a < 0) a = 0;
