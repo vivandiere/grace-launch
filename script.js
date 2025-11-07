@@ -14,19 +14,19 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.style.touchAction = "none";
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
-  const rippleRadius = isMobile ? 20 : 32;
-  const rippleForce = isMobile ? 360 : 420;
-  const randomForce = rippleForce * 0.75;
-  const randomRadius = rippleRadius + 2;
-  const hoverForce = rippleForce * 0.18;
-  const hoverRadius = isMobile ? rippleRadius - 6 : rippleRadius - 10;
-  const hoverInterval = isMobile ? 55 : 45;
-  const clickForce = rippleForce * 1.35;
-  const clickRadius = rippleRadius + 8;
-  const dragForceDesktop = rippleForce * 0.6;
-  const dragForceDefault = rippleForce * 0.48;
-  const dragRadiusDesktop = rippleRadius + 4;
-  const dampingShift = 4;
+  const rippleRadius = isMobile ? 18 : 26;
+  const rippleForce = isMobile ? 340 : 280;
+  const randomForce = rippleForce * 0.7;
+  const randomRadius = rippleRadius + 1;
+  const hoverForce = rippleForce * 0.12;
+  const hoverRadius = Math.max(10, rippleRadius - 6);
+  const hoverInterval = isMobile ? 60 : 38;
+  const clickForce = rippleForce * 1.2;
+  const clickRadius = rippleRadius + 4;
+  const dragForceDesktop = rippleForce * 0.52;
+  const dragForceDefault = rippleForce * 0.45;
+  const dragRadiusDesktop = rippleRadius + 2;
+  const dampingShift = 5;
 
   let aspectRatio = 16 / 9;
   let simWidth = 0;
@@ -181,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const _halfWidth = halfWidth;
     const _halfHeight = halfHeight;
 
-    const refractionScale = isMobile ? 0.65 : 0.75;
+    const refractionScale = isMobile ? 0.48 : 0.42;
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -288,7 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function idleHoverDisturb() {
     if (!isMobile && lastPointerPos.x >= 0) {
       const now = performance.now();
-      if (now - lastIdleTime >= 250) {
+      if (now - lastIdleTime >= 320) {
         lastIdleTime = now;
         const rect = canvas.getBoundingClientRect();
         const pointerEvent = {
@@ -296,7 +296,7 @@ document.addEventListener("DOMContentLoaded", () => {
           clientY: rect.top + lastPointerPos.y,
           pointerType: "mouse",
         };
-        disturbFromPointer(pointerEvent, hoverForce * 0.7, hoverRadius + 3);
+        disturbFromPointer(pointerEvent, hoverForce * 0.6, hoverRadius + 2);
       }
     }
     requestAnimationFrame(idleHoverDisturb);
