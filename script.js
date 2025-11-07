@@ -48,7 +48,14 @@ document.addEventListener("DOMContentLoaded", () => {
   let pointerActive = false;
   let lastHoverTime = 0;
   let lastIdleTime = 0;
-  let lastPointerPos = { x: -1, y: -1 };
+  let pointerMotion = {
+    x: -1,
+    y: -1,
+    t: 0,
+    speed: 0,
+    dirX: 1,
+    dirY: 0,
+  };
 
   const image = new Image();
   image.src = "./assets/ship-render-text.jpg";
@@ -111,6 +118,46 @@ document.addEventListener("DOMContentLoaded", () => {
     newIndex = simWidth * (simHeight + 3);
   }
 
+  const updatePointerMotion = (x, y) => {
+    const now = performance.now();
+    if (pointerMotion.t !== 0) {
+      const dt = now - pointerMotion.t;
+      if (dt > 0) {
+        const vx = (x - pointerMotion.x) / dt;
+        const vy = (y - pointerMotion.y) / dt;
+        const speed = Math.hypot(vx, vy);
+        let dirX = pointerMotion.dirX;
+        let dirY = pointerMotion.dirY;
+        if (speed > 0.0004) {
+          dirX = vx / speed;
+          dirY = vy / speed;
+        }
+        pointerMotion = {
+          x,
+          y,
+          t: now,
+          speed,
+          dirX,
+          dirY,
+        };
+      } else {
+        pointerMotion = { ...pointerMotion, x, y, t: now, speed: 0 };
+      }
+    } else {
+      pointerMotion = { ...pointerMotion, x, y, t: now, speed: 0 };
+    }
+    return pointerMotion;
+  };
+
+  const updatePointerMotionFromEvent = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = simWidth / rect.width;
+    const scaleY = simHeight / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+    return updatePointerMotion(x, y);
+  };
+
   function startAnimation() {
     const frame = () => {
       if (imageLoaded && rippleMap) {
@@ -134,30 +181,55 @@ document.addEventListener("DOMContentLoaded", () => {
     }, isMobile ? 1000 : 1300);
   }
 
-  function disturb(x, y, force = rippleForce, radius = rippleRadius) {
+  function disturb(x, y, force = rippleForce, radius = rippleRadius, motion = null) {
     if (!rippleMap) return;
 
-    const radiusInt = Math.max(2, Math.ceil(radius));
-    const radiusSq = radius * radius;
     const baseForce = force;
-
     const centerX = Math.round(x);
     const centerY = Math.round(y);
+
+    let dirX = 0;
+    let dirY = 0;
+    let hasDirection = false;
+    let majorRadius = radius * 1.5;
+    let minorRadius = radius * 0.9;
+    let strengthScale = 1;
+
+    if (motion && motion.speed && motion.speed > 0.0004) {
+      dirX = motion.dirX;
+      dirY = motion.dirY;
+      hasDirection = true;
+      const speedNorm = Math.min(motion.speed * 45, 1.0);
+      majorRadius = radius * (1.7 + speedNorm * 1.3);
+      minorRadius = radius * 0.55;
+      strengthScale = 0.6 + speedNorm * 0.7;
+    }
+
+    const radiusInt = Math.max(2, Math.ceil(Math.max(majorRadius, minorRadius)));
+    const majorSq = majorRadius * majorRadius;
+    const minorSq = minorRadius * minorRadius;
 
     for (let j = centerY - radiusInt; j <= centerY + radiusInt; j++) {
       if (j < 0 || j >= simHeight) continue;
       const dy = j - centerY;
-      const dySq = dy * dy;
       const rowIndex = oldIndex + j * simWidth;
+
       for (let k = centerX - radiusInt; k <= centerX + radiusInt; k++) {
         if (k < 0 || k >= simWidth) continue;
         const dx = k - centerX;
-        const distSq = dx * dx + dySq;
-        if (distSq > radiusSq) continue;
-        const dist = Math.sqrt(distSq);
-        const falloff = 1 - dist / radius;
-        if (falloff <= 0) continue;
-        const weightedForce = baseForce * falloff * falloff;
+
+        let distNorm;
+        if (hasDirection) {
+          const parallel = dx * dirX + dy * dirY;
+          const perpendicular = -dx * dirY + dy * dirX;
+          distNorm = Math.sqrt((parallel * parallel) / majorSq + (perpendicular * perpendicular) / minorSq);
+        } else {
+          distNorm = Math.sqrt((dx * dx) / majorSq + (dy * dy) / minorSq);
+        }
+
+        if (distNorm > 1) continue;
+        const falloff = 1 - distNorm;
+        const weightedForce = baseForce * strengthScale * falloff * falloff;
         rippleMap[rowIndex + k] += weightedForce;
       }
     }
@@ -232,23 +304,23 @@ document.addEventListener("DOMContentLoaded", () => {
   function handlePointerDown(event) {
     if (!event.isPrimary || !imageLoaded) return;
     event.preventDefault();
+    const motion = updatePointerMotionFromEvent(event);
     activePointerId = event.pointerId;
     pointerActive = true;
     const force = !isMobile && event.pointerType === "mouse" ? clickForce : rippleForce;
     const radius = !isMobile && event.pointerType === "mouse" ? clickRadius : rippleRadius;
-    disturbFromPointer(event, force, radius);
+    disturb(motion.x, motion.y, force, radius, motion);
   }
 
   function handlePointerMove(event) {
-    const rect = canvas.getBoundingClientRect();
-    lastPointerPos.x = event.clientX - rect.left;
-    lastPointerPos.y = event.clientY - rect.top;
+    let motion = updatePointerMotionFromEvent(event);
 
     if (!isMobile && event.pointerType === "mouse" && event.buttons === 0) {
       const now = performance.now();
       if (now - lastHoverTime >= hoverInterval) {
         lastHoverTime = now;
-        disturbFromPointer(event, hoverForce, hoverRadius);
+        motion = pointerMotion;
+        disturb(motion.x, motion.y, hoverForce, hoverRadius, motion);
       }
     }
 
@@ -256,22 +328,14 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     const force = !isMobile && event.pointerType === "mouse" ? dragForceDesktop : dragForceDefault;
     const radius = !isMobile && event.pointerType === "mouse" ? dragRadiusDesktop : rippleRadius;
-    disturbFromPointer(event, force, radius);
+    motion = pointerMotion;
+    disturb(motion.x, motion.y, force, radius, motion);
   }
 
   function handlePointerUp(event) {
     if (event.pointerId !== activePointerId) return;
     pointerActive = false;
     activePointerId = null;
-  }
-
-  function disturbFromPointer(event, force, radius) {
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = simWidth / rect.width;
-    const scaleY = simHeight / rect.height;
-    const x = (event.clientX - rect.left) * scaleX;
-    const y = (event.clientY - rect.top) * scaleY;
-    disturb(x, y, force, radius);
   }
 
   canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
@@ -281,22 +345,23 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.addEventListener("pointerleave", () => {
     pointerActive = false;
     activePointerId = null;
-    lastPointerPos.x = -1;
-    lastPointerPos.y = -1;
+    pointerMotion = {
+      x: -1,
+      y: -1,
+      t: 0,
+      speed: 0,
+      dirX: 1,
+      dirY: 0,
+    };
   });
 
   function idleHoverDisturb() {
-    if (!isMobile && lastPointerPos.x >= 0) {
+    if (!isMobile && pointerMotion.x >= 0) {
       const now = performance.now();
       if (now - lastIdleTime >= 320) {
         lastIdleTime = now;
-        const rect = canvas.getBoundingClientRect();
-        const pointerEvent = {
-          clientX: rect.left + lastPointerPos.x,
-          clientY: rect.top + lastPointerPos.y,
-          pointerType: "mouse",
-        };
-        disturbFromPointer(pointerEvent, hoverForce * 0.6, hoverRadius + 2);
+        const motion = pointerMotion;
+        disturb(motion.x, motion.y, hoverForce * 0.6, hoverRadius + 2, motion);
       }
     }
     requestAnimationFrame(idleHoverDisturb);
