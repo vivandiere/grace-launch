@@ -80,8 +80,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     canvas.width = simWidth;
     canvas.height = simHeight;
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
+    canvas.style.width = "100%";
+    canvas.style.height = "auto";
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, simWidth, simHeight);
