@@ -14,18 +14,18 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.style.touchAction = "none";
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
-  const rippleRadius = isMobile ? 18 : 26;
-  const rippleForce = isMobile ? 340 : 280;
-  const randomForce = rippleForce * 0.7;
-  const randomRadius = rippleRadius + 1;
-  const hoverForce = rippleForce * 0.12;
-  const hoverRadius = Math.max(10, rippleRadius - 6);
-  const hoverInterval = isMobile ? 60 : 38;
-  const clickForce = rippleForce * 1.2;
-  const clickRadius = rippleRadius + 4;
-  const dragForceDesktop = rippleForce * 0.52;
-  const dragForceDefault = rippleForce * 0.45;
-  const dragRadiusDesktop = rippleRadius + 2;
+  const rippleRadius = isMobile ? 20 : 36;
+  const rippleForce = isMobile ? 320 : 300;
+  const randomForce = rippleForce * 0.65;
+  const randomRadius = rippleRadius + 2;
+  const hoverForce = rippleForce * 0.1;
+  const hoverRadius = Math.max(12, rippleRadius - 12);
+  const hoverInterval = isMobile ? 65 : 55;
+  const clickForce = rippleForce * 1.18;
+  const clickRadius = rippleRadius + 6;
+  const dragForceDesktop = rippleForce * 0.5;
+  const dragForceDefault = rippleForce * 0.42;
+  const dragRadiusDesktop = rippleRadius + 3;
   const dampingShift = 5;
 
   let aspectRatio = 16 / 9;
@@ -181,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const _halfWidth = halfWidth;
     const _halfHeight = halfHeight;
 
-    const refractionScale = isMobile ? 0.48 : 0.42;
+    const refractionScale = isMobile ? 0.38 : 0.32;
 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
