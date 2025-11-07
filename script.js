@@ -1,316 +1,286 @@
-import {
-  simulationVertexShader,
-  simulationFragmentShader,
-  renderVertexShader,
-  renderFragmentShader,
-} from "./shaders.js";
-
 document.addEventListener("DOMContentLoaded", () => {
-  // Check WebGL support
-  const canvas = document.createElement("canvas");
-  const testGl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-  if (!testGl) {
-    document.body.innerHTML = `
-      <div style="color: white; text-align: center; padding: 50px; font-family: Arial, sans-serif;">
-        <h2>WebGL Not Supported</h2>
-        <p>Your device or browser doesn't support WebGL, which is required for this effect.</p>
-        <p>Please try updating your browser or using a different device.</p>
-      </div>
-    `;
+  const canvas = document.getElementById("rippleCanvas");
+  if (!canvas) {
+    console.error("rippleCanvas element is missing");
     return;
   }
 
-  const scene = new THREE.Scene();
-  const simScene = new THREE.Scene();
-
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-
-  const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    preserveDrawingBuffer: true,
-  });
-  
-  // Detect mobile device
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
-  const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 1.5) : Math.min(window.devicePixelRatio, 2);
-  renderer.setPixelRatio(pixelRatio);
-  
-  // Force 16:9 aspect ratio for image content
-  const imageAspectRatio = 16 / 9;
-  let canvasWidth = window.innerWidth;
-  let canvasHeight = window.innerHeight;
-  
-  const updateCanvasSize = () => {
-    // Canvas always fills viewport
-    canvasWidth = window.innerWidth;
-    canvasHeight = window.innerHeight;
-    const viewportAspect = canvasWidth / canvasHeight;
-    
-    renderer.setSize(canvasWidth, canvasHeight);
-    const renderWidth = canvasWidth * pixelRatio;
-    const renderHeight = canvasHeight * pixelRatio;
-    rtA.setSize(renderWidth, renderHeight);
-    rtB.setSize(renderWidth, renderHeight);
-    simMaterial.uniforms.resolution.value.set(renderWidth, renderHeight);
-    
-    // Update uniforms for shader to handle 16:9 cropping
-    if (renderMaterial.uniforms.imageAspectRatio) {
-      renderMaterial.uniforms.imageAspectRatio.value = imageAspectRatio;
-    }
-    if (renderMaterial.uniforms.viewportAspect) {
-      renderMaterial.uniforms.viewportAspect.value = viewportAspect;
-    }
-    if (renderMaterial.uniforms.canvasSize) {
-      renderMaterial.uniforms.canvasSize.value.set(canvasWidth, canvasHeight);
-    }
-  };
-  
-  renderer.setSize(canvasWidth, canvasHeight);
-  document.body.appendChild(renderer.domElement);
-
-  const mouse = new THREE.Vector2();
-  let frame = 0;
-
-  // Initialize render targets with temporary size, will be updated when image loads
-  const initialWidth = canvasWidth * pixelRatio;
-  const initialHeight = canvasHeight * pixelRatio;
-  
-  // Determine the best render target texture type for this device
-  const gl = renderer.getContext();
-  const extensions = renderer.extensions;
-  const capabilities = renderer.capabilities;
-  const isWebGL2 = capabilities.isWebGL2;
-  
-  const hasFloatTexture = isWebGL2 || extensions.has("OES_texture_float");
-  const hasFloatRenderTarget = isWebGL2
-    ? extensions.has("EXT_color_buffer_float")
-    : extensions.has("WEBGL_color_buffer_float");
-  const hasFloatLinear = isWebGL2 || extensions.has("OES_texture_float_linear");
-  
-  const hasHalfFloatTexture = isWebGL2 || extensions.has("OES_texture_half_float");
-  const hasHalfFloatRenderTarget = isWebGL2
-    ? extensions.has("EXT_color_buffer_float")
-    : extensions.has("EXT_color_buffer_half_float");
-  const hasHalfFloatLinear = isWebGL2 || extensions.has("OES_texture_half_float_linear");
-  
-  let textureType = THREE.FloatType;
-  let minMagFilter = THREE.LinearFilter;
-  
-  if (!(hasFloatTexture && hasFloatRenderTarget)) {
-    if (hasHalfFloatTexture && hasHalfFloatRenderTarget) {
-      textureType = THREE.HalfFloatType;
-      if (!hasHalfFloatLinear) {
-        minMagFilter = THREE.NearestFilter;
-      }
-      console.log("Using HalfFloatType for better compatibility");
-    } else {
-      document.body.innerHTML = `
-        <div style="color: white; text-align: center; padding: 48px; font-family: Arial, sans-serif;">
-          <h2>Device Not Supported</h2>
-          <p>Your browser or device doesn’t support the WebGL features required for this water effect.</p>
-          <p>Please try updating your browser or using a device with WebGL 2 / float textures.</p>
-        </div>
-      `;
-      return;
-    }
-  } else if (!hasFloatLinear) {
-    minMagFilter = THREE.NearestFilter;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) {
+    console.error("Canvas 2D context is not available");
+    return;
   }
-  
-  const options = {
-    format: THREE.RGBAFormat,
-    type: textureType,
-    minFilter: minMagFilter,
-    magFilter: minMagFilter,
-    stencilBuffer: false,
-    depthBuffer: false,
-    wrapS: THREE.ClampToEdgeWrapping,
-    wrapT: THREE.ClampToEdgeWrapping,
-  };
-  let rtA = new THREE.WebGLRenderTarget(initialWidth, initialHeight, options);
-  let rtB = new THREE.WebGLRenderTarget(initialWidth, initialHeight, options);
-  
-  // Ensure render target textures have proper wrapping
-  rtA.texture.wrapS = THREE.ClampToEdgeWrapping;
-  rtA.texture.wrapT = THREE.ClampToEdgeWrapping;
-  rtB.texture.wrapS = THREE.ClampToEdgeWrapping;
-  rtB.texture.wrapT = THREE.ClampToEdgeWrapping;
 
-  const simMaterial = new THREE.ShaderMaterial({
-    uniforms: {
-      textureA: { value: null },
-      mouse: { value: mouse },
-      resolution: { value: new THREE.Vector2(initialWidth, initialHeight) },
-      time: { value: 0 },
-      frame: { value: 0 },
-      isMobile: { value: isMobile ? 1.0 : 0.0 },
-    },
-    vertexShader: simulationVertexShader,
-    fragmentShader: simulationFragmentShader,
-  });
+  canvas.style.touchAction = "none";
 
-  const renderMaterial = new THREE.ShaderMaterial({
-    uniforms: {
-      textureA: { value: null },
-      textureB: { value: null },
-      isMobile: { value: isMobile ? 1.0 : 0.0 },
-      imageAspectRatio: { value: imageAspectRatio },
-      viewportAspect: { value: window.innerWidth / window.innerHeight },
-      canvasSize: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-    },
-    vertexShader: renderVertexShader,
-    fragmentShader: renderFragmentShader,
-    transparent: true,
-  });
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
+  const rippleRadius = isMobile ? 5 : 4;
+  const rippleForce = isMobile ? 384 : 512;
+  const randomForce = rippleForce * 0.7;
+  const dampingShift = 5;
 
-  const plane = new THREE.PlaneGeometry(2, 2);
-  const simQuad = new THREE.Mesh(plane, simMaterial);
-  const renderQuad = new THREE.Mesh(plane, renderMaterial);
-
-  simScene.add(simQuad);
-  scene.add(renderQuad);
-
-  // Load image texture instead of canvas text
-  const textureLoader = new THREE.TextureLoader();
-  let imageTexture = null;
+  let aspectRatio = 16 / 9;
+  let simWidth = 0;
+  let simHeight = 0;
+  let size = 0;
+  let halfWidth = 0;
+  let halfHeight = 0;
+  let rippleMap;
+  let lastMap;
+  let rippleData;
+  let textureData;
+  let oldIndex = 0;
+  let newIndex = 0;
+  let animationFrameId = null;
+  let randomIntervalId = null;
+  let resizeTimeoutId = null;
   let imageLoaded = false;
-  
-  textureLoader.load(
-    "./assets/ship-render-text.jpg",
-    (texture) => {
-      // Texture loaded successfully
-      texture.minFilter = THREE.LinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.format = THREE.RGBAFormat;
-      texture.wrapS = THREE.ClampToEdgeWrapping;
-      texture.wrapT = THREE.ClampToEdgeWrapping;
-      
-      imageTexture = texture;
-      imageLoaded = true;
-      
-      // Force 16:9 aspect ratio (don't use actual image dimensions)
-      // Image will be cropped to 16:9 in the shader
-      updateCanvasSize();
-      
-      console.log("Image loaded successfully", texture.image.width, texture.image.height);
-      
-    },
-    undefined,
-    (error) => {
-      console.error("Error loading image:", error);
-      // Fallback: create a simple colored canvas
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx.fillStyle = "#1a1a2e";
-      ctx.fillRect(0, 0, width, height);
-      const fallbackTexture = new THREE.CanvasTexture(canvas);
-      fallbackTexture.minFilter = THREE.LinearFilter;
-      fallbackTexture.magFilter = THREE.LinearFilter;
-      fallbackTexture.wrapS = THREE.ClampToEdgeWrapping;
-      fallbackTexture.wrapT = THREE.ClampToEdgeWrapping;
-      imageTexture = fallbackTexture;
-      imageLoaded = true;
+  let activePointerId = null;
+  let pointerActive = false;
+
+  const image = new Image();
+  image.src = "./assets/ship-render-text.jpg";
+  image.onload = () => {
+    aspectRatio = image.width / image.height;
+    imageLoaded = true;
+    initializeRipple();
+    startAnimation();
+    startRandomRipples();
+  };
+
+  image.onerror = (error) => {
+    console.error("Failed to load ripple background image", error);
+  };
+
+  function initializeRipple() {
+    if (!imageLoaded) return;
+
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
     }
-  );
-  
-  // Set texture properties (will be set in load callback if image loads)
-  // Don't set here as imageTexture might be null initially
+
+    if (randomIntervalId) {
+      clearInterval(randomIntervalId);
+      randomIntervalId = null;
+    }
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let displayWidth = viewportWidth;
+    let displayHeight = viewportWidth / aspectRatio;
+
+    if (displayHeight < viewportHeight) {
+      displayHeight = viewportHeight;
+      displayWidth = viewportHeight * aspectRatio;
+    }
+
+    const maxDisplayWidth = isMobile ? 720 : 1200;
+    if (displayWidth > maxDisplayWidth) {
+      const limitScale = maxDisplayWidth / displayWidth;
+      displayWidth *= limitScale;
+      displayHeight *= limitScale;
+    }
+
+    const simulationScale = isMobile ? 0.45 : 0.6;
+    simWidth = Math.max(180, Math.round(displayWidth * simulationScale));
+    simHeight = Math.max(180, Math.round(displayHeight * simulationScale));
+
+    if (simWidth % 2 !== 0) simWidth -= 1;
+    if (simHeight % 2 !== 0) simHeight -= 1;
+
+    canvas.width = simWidth;
+    canvas.height = simHeight;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+
+    ctx.clearRect(0, 0, simWidth, simHeight);
+    ctx.drawImage(image, 0, 0, simWidth, simHeight);
+
+    textureData = ctx.getImageData(0, 0, simWidth, simHeight);
+    rippleData = ctx.getImageData(0, 0, simWidth, simHeight);
+
+    size = simWidth * (simHeight + 2) * 2;
+    rippleMap = new Int16Array(size);
+    lastMap = new Int16Array(size);
+
+    halfWidth = simWidth >> 1;
+    halfHeight = simHeight >> 1;
+    oldIndex = simWidth;
+    newIndex = simWidth * (simHeight + 3);
+  }
+
+  function startAnimation() {
+    const frame = () => {
+      if (imageLoaded && rippleMap) {
+        newFrame();
+        ctx.putImageData(rippleData, 0, 0);
+      }
+      animationFrameId = requestAnimationFrame(frame);
+    };
+
+    frame();
+  }
+
+  function startRandomRipples() {
+    if (randomIntervalId) {
+      clearInterval(randomIntervalId);
+    }
+
+    randomIntervalId = setInterval(() => {
+      if (!rippleMap) return;
+      disturb(Math.random() * simWidth, Math.random() * simHeight, randomForce);
+    }, isMobile ? 1100 : 1500);
+  }
+
+  function disturb(x, y, force = rippleForce) {
+    if (!rippleMap) return;
+
+    x = x << 0;
+    y = y << 0;
+
+    const radius = rippleRadius;
+
+    for (let j = y - radius; j < y + radius; j++) {
+      if (j < 0 || j >= simHeight) continue;
+      let mapIndex = oldIndex + j * simWidth;
+      for (let k = x - radius; k < x + radius; k++) {
+        if (k < 0 || k >= simWidth) continue;
+        rippleMap[mapIndex + k] += force;
+      }
+    }
+  }
+
+  function newFrame() {
+    let temp = oldIndex;
+    oldIndex = newIndex;
+    newIndex = temp;
+
+    let mapIndex = oldIndex;
+    let dataIndex = 0;
+
+    const width = simWidth;
+    const height = simHeight;
+    const _rippleMap = rippleMap;
+    const _lastMap = lastMap;
+    const _textureData = textureData.data;
+    const _rippleData = rippleData.data;
+    const _newIndex = newIndex;
+    const _halfWidth = halfWidth;
+    const _halfHeight = halfHeight;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        let data = (
+          _rippleMap[mapIndex - width] +
+          _rippleMap[mapIndex + width] +
+          _rippleMap[mapIndex - 1] +
+          _rippleMap[mapIndex + 1]
+        ) >> 1;
+
+        data -= _rippleMap[_newIndex + dataIndex];
+        data -= data >> dampingShift;
+        _rippleMap[_newIndex + dataIndex] = data;
+
+        data = 1024 - data;
+
+        const oldData = _lastMap[dataIndex];
+        _lastMap[dataIndex] = data;
+
+        if (oldData !== data) {
+          let a = (((x - _halfWidth) * data) / 1024) + _halfWidth;
+          let b = (((y - _halfHeight) * data) / 1024) + _halfHeight;
+
+          if (a >= width) a = width - 1;
+          else if (a < 0) a = 0;
+          if (b >= height) b = height - 1;
+          else if (b < 0) b = 0;
+
+          a = a << 0;
+          b = b << 0;
+
+          const newPixel = (a + b * width) * 4;
+          const currentPixel = dataIndex * 4;
+
+          _rippleData[currentPixel] = _textureData[newPixel];
+          _rippleData[currentPixel + 1] = _textureData[newPixel + 1];
+          _rippleData[currentPixel + 2] = _textureData[newPixel + 2];
+          _rippleData[currentPixel + 3] = _textureData[newPixel + 3];
+        }
+
+        mapIndex++;
+        dataIndex++;
+      }
+    }
+  }
+
+  function handlePointerDown(event) {
+    if (!event.isPrimary || !imageLoaded) return;
+    event.preventDefault();
+    activePointerId = event.pointerId;
+    pointerActive = true;
+    disturbFromPointer(event, rippleForce);
+  }
+
+  function handlePointerMove(event) {
+    if (!pointerActive || event.pointerId !== activePointerId) return;
+    event.preventDefault();
+    disturbFromPointer(event, rippleForce * 0.6);
+  }
+
+  function handlePointerUp(event) {
+    if (event.pointerId !== activePointerId) return;
+    pointerActive = false;
+    activePointerId = null;
+  }
+
+  function disturbFromPointer(event, force) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = simWidth / rect.width;
+    const scaleY = simHeight / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+    disturb(x, y, force);
+  }
+
+  canvas.addEventListener("pointerdown", handlePointerDown, { passive: false });
+  canvas.addEventListener("pointermove", handlePointerMove, { passive: false });
+  window.addEventListener("pointerup", handlePointerUp);
+  window.addEventListener("pointercancel", handlePointerUp);
+  canvas.addEventListener("pointerleave", () => {
+    pointerActive = false;
+    activePointerId = null;
+  });
 
   window.addEventListener("resize", () => {
-    updateCanvasSize();
-    
-    // Image texture will automatically handle resize
-    if (imageTexture) {
-      imageTexture.needsUpdate = true;
+    if (!imageLoaded) return;
+    if (resizeTimeoutId) {
+      clearTimeout(resizeTimeoutId);
     }
+    resizeTimeoutId = window.setTimeout(() => {
+      initializeRipple();
+      startAnimation();
+      startRandomRipples();
+    }, 120);
   });
 
-  renderer.domElement.addEventListener("mousemove", (e) => {
-    const rect = renderer.domElement.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * canvasWidth * pixelRatio;
-    const y = ((rect.height - (e.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
-    mouse.x = x;
-    mouse.y = y;
+  document.addEventListener("visibilitychange", () => {
+    if (!imageLoaded) return;
+    const hidden = document.hidden;
+    if (hidden) {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
+      if (randomIntervalId) {
+        clearInterval(randomIntervalId);
+        randomIntervalId = null;
+      }
+    } else {
+      startAnimation();
+      startRandomRipples();
+    }
   });
-
-  renderer.domElement.addEventListener("mouseleave", () => {
-    mouse.set(0, 0);
-  });
-
-  // Touch support for mobile devices
-  renderer.domElement.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-    if (e.touches.length > 0) {
-      const touch = e.touches[0];
-      const rect = renderer.domElement.getBoundingClientRect();
-      const x = ((touch.clientX - rect.left) / rect.width) * canvasWidth * pixelRatio;
-      const y = ((rect.height - (touch.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
-      mouse.x = x;
-      mouse.y = y;
-    }
-  }, { passive: false });
-
-  renderer.domElement.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    if (e.touches.length > 0) {
-      const touch = e.touches[0];
-      const rect = renderer.domElement.getBoundingClientRect();
-      const x = ((touch.clientX - rect.left) / rect.width) * canvasWidth * pixelRatio;
-      const y = ((rect.height - (touch.clientY - rect.top)) / rect.height) * canvasHeight * pixelRatio;
-      mouse.x = x;
-      mouse.y = y;
-    }
-  }, { passive: false });
-
-  renderer.domElement.addEventListener("touchend", () => {
-    mouse.set(0, 0);
-  });
-
-  let debugLogged = false;
-  
-  const animate = () => {
-    simMaterial.uniforms.frame.value = frame++;
-    simMaterial.uniforms.time.value = performance.now() / 1000;
-
-    // Ensure textures are ready before rendering
-    if (!imageLoaded || !imageTexture || !rtA || !rtB) {
-      requestAnimationFrame(animate);
-      return;
-    }
-
-    // Debug log once
-    if (!debugLogged && frame === 10) {
-      debugLogged = true;
-      console.log("Animation running:", {
-        isMobile,
-        frame,
-        canvasWidth,
-        canvasHeight,
-        pixelRatio,
-        textureType: textureType === THREE.FloatType ? "Float" : 
-                     textureType === THREE.HalfFloatType ? "HalfFloat" : "UnsignedByte"
-      });
-    }
-
-    simMaterial.uniforms.textureA.value = rtA.texture;
-    renderer.setRenderTarget(rtB);
-    renderer.render(simScene, camera);
-
-    renderMaterial.uniforms.textureA.value = rtB.texture;
-    renderMaterial.uniforms.textureB.value = imageTexture;
-    renderer.setRenderTarget(null);
-    renderer.render(scene, camera);
-
-    const temp = rtA;
-    rtA = rtB;
-    rtB = temp;
-
-    requestAnimationFrame(animate);
-  };
-
-  // Start animation loop (will wait for textures to become ready)
-  animate();
 });
+

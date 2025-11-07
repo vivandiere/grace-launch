@@ -1,14 +1,14 @@
 # Water Ripple Effect
 
-An interactive water ripple effect using Three.js WebGL shaders. Features continuous ambient water motion and interactive ripples on mouse/touch input.
+An interactive water ripple effect powered by a lightweight Canvas 2D implementation. Inspired by the classic JS1K “water ripple” demo, it drives continuous ambient motion plus interactive ripples on mouse and touch input.
 
 ## Features
 
-- 🌊 Real-time water simulation with WebGL shaders
-- 🖱️ Interactive ripples on mouse/touch movement
-- ✨ Continuous ambient wave motion
-- 🎨 Refraction and caustic effects
-- 📱 Mobile-friendly touch support
+- 🌊 Real-time water simulation using pure Canvas 2D
+- 🖱️ Interactive ripples that track mouse/touch movement
+- ✨ Continuous ambient waves with random disturbances
+- ⚙️ Resolution scaling for smoother mobile performance
+- 📱 Runs on modern mobile browsers (no WebGL required)
 
 ## Setup
 
@@ -29,7 +29,7 @@ http://localhost:3000
 
 ### Deployment Notes
 
-- Latest update triggered on: November 7, 2025 – includes softer mobile ripples and improved WebGL compatibility checks.
+- Latest update triggered on: November 7, 2025 – switched to a Canvas-based ripple engine with mobile-friendly tuning.
 
 ## Usage
 
@@ -38,11 +38,10 @@ http://localhost:3000
 
 ## Files
 
-- `index.html` - Main HTML file
-- `script.js` - Three.js setup and animation loop
-- `shaders.js` - WebGL vertex and fragment shaders
-- `styles.css` - Minimal styling
-- `server.js` - Simple HTTP server
+- `index.html` - Main HTML file with full-screen canvas
+- `script.js` - Canvas 2D ripple simulation (inspired by JS1K classic)
+- `styles.css` - Minimal styling and canvas layout helpers
+- `server.js` - Simple HTTP server (optional for local testing)
 - `assets/` - Image assets
 
 ## Deployment
@@ -72,7 +71,7 @@ node server.js
 
 ## Technologies
 
-- Three.js (r128)
-- WebGL Shaders
-- Node.js (for local server only)
+- HTML5 Canvas 2D
+- Vanilla JavaScript
+- Node.js (for the optional local server)
 
