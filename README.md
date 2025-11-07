@@ -27,6 +27,10 @@ node server.js
 http://localhost:3000
 ```
 
+### Deployment Notes
+
+- Latest update triggered on: November 7, 2025 – includes softer mobile ripples and improved WebGL compatibility checks.
+
 ## Usage
 
 - **Mouse/Touch**: Move your cursor or finger over the canvas to create ripples
