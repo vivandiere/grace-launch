@@ -68,9 +68,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const dpr = window.devicePixelRatio || 1;
     const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
 
-    const displayWidth = viewportWidth;
-    const displayHeight = Math.round(displayWidth / aspectRatio);
+    let displayWidth = viewportWidth;
+    let displayHeight = Math.round(displayWidth / aspectRatio);
+
+    if (displayHeight < viewportHeight) {
+      displayHeight = viewportHeight;
+      displayWidth = Math.round(displayHeight * aspectRatio);
+    }
+
+    const offsetX = (displayWidth - viewportWidth) / 2;
+    const offsetY = (displayHeight - viewportHeight) / 2;
 
     simWidth = Math.max(256, Math.round(displayWidth * dpr));
     simHeight = Math.max(256, Math.round(displayHeight * dpr));
@@ -82,6 +91,8 @@ document.addEventListener("DOMContentLoaded", () => {
     canvas.height = simHeight;
     canvas.style.width = `${displayWidth}px`;
     canvas.style.height = `${displayHeight}px`;
+    canvas.style.marginLeft = `${-offsetX}px`;
+    canvas.style.marginTop = `${-offsetY}px`;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, simWidth, simHeight);
