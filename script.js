@@ -14,10 +14,10 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.style.touchAction = "none";
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
-  const rippleRadius = isMobile ? 12 : 10;
-  const rippleForce = isMobile ? 320 : 448;
-  const randomForce = rippleForce * 0.9;
-  const randomRadius = Math.round(rippleRadius * 1.25);
+  const rippleRadius = isMobile ? 8 : 8;
+  const rippleForce = isMobile ? 320 : 360;
+  const randomForce = rippleForce * 0.85;
+  const randomRadius = rippleRadius;
   const dampingShift = 5;
 
   let aspectRatio = 16 / 9;
@@ -176,8 +176,8 @@ document.addEventListener("DOMContentLoaded", () => {
         _lastMap[dataIndex] = data;
 
         if (oldData !== data) {
-          let a = (((x - _halfWidth) * data) / 1024) + _halfWidth;
-          let b = (((y - _halfHeight) * data) / 1024) + _halfHeight;
+          let a = (((x - _halfWidth) * data) / 1536) + _halfWidth;
+          let b = (((y - _halfHeight) * data) / 1536) + _halfHeight;
 
           if (a >= width) a = width - 1;
           else if (a < 0) a = 0;
