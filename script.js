@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.style.touchAction = "none";
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
-  const rippleRadius = isMobile ? 5 : 4;
+  const rippleRadius = isMobile ? 6 : 5;
   const rippleForce = isMobile ? 384 : 512;
   const randomForce = rippleForce * 0.7;
   const dampingShift = 5;
@@ -65,36 +65,24 @@ document.addEventListener("DOMContentLoaded", () => {
       randomIntervalId = null;
     }
 
+    const dpr = window.devicePixelRatio || 1;
     const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
 
-    let displayWidth = viewportWidth;
-    let displayHeight = viewportWidth / aspectRatio;
+    const displayWidth = viewportWidth;
+    const displayHeight = Math.round(displayWidth / aspectRatio);
 
-    if (displayHeight < viewportHeight) {
-      displayHeight = viewportHeight;
-      displayWidth = viewportHeight * aspectRatio;
-    }
+    simWidth = Math.max(256, Math.round(displayWidth * dpr));
+    simHeight = Math.max(256, Math.round(displayHeight * dpr));
 
-    const maxDisplayWidth = isMobile ? 720 : 1200;
-    if (displayWidth > maxDisplayWidth) {
-      const limitScale = maxDisplayWidth / displayWidth;
-      displayWidth *= limitScale;
-      displayHeight *= limitScale;
-    }
-
-    const simulationScale = isMobile ? 0.45 : 0.6;
-    simWidth = Math.max(180, Math.round(displayWidth * simulationScale));
-    simHeight = Math.max(180, Math.round(displayHeight * simulationScale));
-
-    if (simWidth % 2 !== 0) simWidth -= 1;
-    if (simHeight % 2 !== 0) simHeight -= 1;
+    if (simWidth % 2 !== 0) simWidth += 1;
+    if (simHeight % 2 !== 0) simHeight += 1;
 
     canvas.width = simWidth;
     canvas.height = simHeight;
     canvas.style.width = `${displayWidth}px`;
     canvas.style.height = `${displayHeight}px`;
 
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, simWidth, simHeight);
     ctx.drawImage(image, 0, 0, simWidth, simHeight);
 
@@ -131,7 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
     randomIntervalId = setInterval(() => {
       if (!rippleMap) return;
       disturb(Math.random() * simWidth, Math.random() * simHeight, randomForce);
-    }, isMobile ? 1100 : 1500);
+    }, isMobile ? 1300 : 1600);
   }
 
   function disturb(x, y, force = rippleForce) {
