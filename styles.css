@@ -5,17 +5,17 @@
 }
 
 body {
+  margin: 0;
   background: #000;
   color: #fff;
   font-family: sans-serif;
+  overflow-x: hidden;
 }
 
 #rippleCanvas {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 16 / 9;
   touch-action: none;
   background: #000;
-  margin: 0 auto;
 }
