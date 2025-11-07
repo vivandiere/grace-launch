@@ -14,18 +14,18 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.style.touchAction = "none";
 
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 820;
-  const rippleRadius = 8;
-  const rippleForce = isMobile ? 320 : 340;
+  const rippleRadius = 16;
+  const rippleForce = isMobile ? 320 : 360;
   const randomForce = rippleForce * 0.85;
-  const randomRadius = rippleRadius + 1;
-  const hoverForce = rippleForce * 0.25;
-  const hoverRadius = Math.max(4, rippleRadius - 2);
-  const hoverInterval = 35;
-  const clickForce = rippleForce * 1.2;
-  const clickRadius = rippleRadius + 3;
-  const dragForceDesktop = rippleForce * 0.65;
+  const randomRadius = rippleRadius + 2;
+  const hoverForce = rippleForce * 0.22;
+  const hoverRadius = Math.max(6, rippleRadius - 6);
+  const hoverInterval = 30;
+  const clickForce = rippleForce * 1.3;
+  const clickRadius = rippleRadius + 4;
+  const dragForceDesktop = rippleForce * 0.7;
   const dragForceDefault = rippleForce * 0.5;
-  const dragRadiusDesktop = rippleRadius + 2;
+  const dragRadiusDesktop = rippleRadius + 3;
   const dampingShift = 5;
 
   let aspectRatio = 16 / 9;
@@ -47,6 +47,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let activePointerId = null;
   let pointerActive = false;
   let lastHoverTime = 0;
+  let lastIdleTime = 0;
+  let lastPointerPos = { x: -1, y: -1 };
 
   const image = new Image();
   image.src = "./assets/ship-render-text.jpg";
@@ -225,6 +227,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function handlePointerMove(event) {
+    const rect = canvas.getBoundingClientRect();
+    lastPointerPos.x = event.clientX - rect.left;
+    lastPointerPos.y = event.clientY - rect.top;
+
     if (!isMobile && event.pointerType === "mouse" && event.buttons === 0) {
       const now = performance.now();
       if (now - lastHoverTime >= hoverInterval) {
@@ -262,7 +268,28 @@ document.addEventListener("DOMContentLoaded", () => {
   canvas.addEventListener("pointerleave", () => {
     pointerActive = false;
     activePointerId = null;
+    lastPointerPos.x = -1;
+    lastPointerPos.y = -1;
   });
+
+  function idleHoverDisturb() {
+    if (!isMobile && lastPointerPos.x >= 0) {
+      const now = performance.now();
+      if (now - lastIdleTime >= 250) {
+        lastIdleTime = now;
+        const rect = canvas.getBoundingClientRect();
+        const pointerEvent = {
+          clientX: rect.left + lastPointerPos.x,
+          clientY: rect.top + lastPointerPos.y,
+          pointerType: "mouse",
+        };
+        disturbFromPointer(pointerEvent, hoverForce * 0.6, hoverRadius + 1);
+      }
+    }
+    requestAnimationFrame(idleHoverDisturb);
+  }
+
+  idleHoverDisturb();
 
   window.addEventListener("resize", () => {
     if (!imageLoaded) return;
